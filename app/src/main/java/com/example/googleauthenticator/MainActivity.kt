@@ -1,5 +1,6 @@
 package com.example.googleauthenticator
 
+import ProfileScreen
 import com.example.googleauthenticator.views.sign_in.SignInScreen
 import android.os.Bundle
 import android.util.Log
@@ -54,7 +55,7 @@ class MainActivity : ComponentActivity() {
                             val state by viewModel.state.collectAsStateWithLifecycle()
                             LaunchedEffect(key1 = Unit) {
                                 if(googleAuthUiClient.getSignedInUser() != null) {
-                                 //  TODO("Navigate to profile screen of already logged in")
+                                    navController.navigate("profile")
                                 }
                             }
 
@@ -83,7 +84,8 @@ class MainActivity : ComponentActivity() {
                                         "Sign in successful",
                                         Toast.LENGTH_LONG
                                     ).show()
-                                  //TODO("Need to implement profile screen after successful sign in")
+                                    navController.navigate("profile")
+                                    viewModel.resetState()
                                 }
                             }
 
@@ -98,6 +100,23 @@ class MainActivity : ComponentActivity() {
                                                 signInIntentSender ?: return@launch
                                             ).build()
                                         )
+                                    }
+                                }
+                            )
+                        }
+                        composable("profile") {
+                            ProfileScreen(
+                                userData = googleAuthUiClient.getSignedInUser(),
+                                onSignOut = {
+                                    lifecycleScope.launch {
+                                        googleAuthUiClient.signOut()
+                                        Toast.makeText(
+                                            applicationContext,
+                                            "Signed out",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+
+                                        navController.popBackStack()
                                     }
                                 }
                             )
