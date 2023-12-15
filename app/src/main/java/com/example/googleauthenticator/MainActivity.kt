@@ -1,9 +1,14 @@
 package com.example.googleauthenticator
 
 import ProfileScreen
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import com.example.googleauthenticator.views.sign_in.SignInScreen
 import android.os.Bundle
 import android.util.Log
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -12,10 +17,25 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Snackbar
+import androidx.compose.material.SnackbarDuration
+import androidx.compose.material.SnackbarHost
+import androidx.compose.material.SnackbarHostState
+import androidx.compose.material.SnackbarResult
 import androidx.compose.material.Surface
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -27,6 +47,7 @@ import com.example.googleauthenticator.views.sign_in.GoogleAuthUiClient
 import com.example.googleauthenticator.views.sign_in.SignInViewModel
 import com.google.android.gms.auth.api.identity.Identity
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 private const val TAG = "MainActivity"
 class MainActivity : ComponentActivity() {
@@ -41,12 +62,93 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+
+            var locationPermissionsGranted by remember { mutableStateOf(areLocationPermissionsAlreadyGranted()) }
+            var shouldShowPermissionRationale by remember {
+                mutableStateOf(
+                    shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION)
+                )
+            }
+
+            var shouldDirectUserToApplicationSettings by remember {
+                mutableStateOf(false)
+            }
+
+            var currentPermissionsStatus by remember {
+                mutableStateOf(decideCurrentPermissionStatus(locationPermissionsGranted, shouldShowPermissionRationale))
+            }
+
+            val locationPermissions = arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+            val scope = rememberCoroutineScope()
+            val snackbarHostState = remember { SnackbarHostState() }
+
+            val locationPermissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestMultiplePermissions(),
+                onResult = { permissions ->
+                    locationPermissionsGranted = permissions.values.reduce { acc, isPermissionGranted ->
+                        acc && isPermissionGranted
+                    }
+
+                    if (!locationPermissionsGranted) {
+                        shouldShowPermissionRationale =
+                            shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    }
+                    shouldDirectUserToApplicationSettings = !shouldShowPermissionRationale && !locationPermissionsGranted
+                    currentPermissionsStatus = decideCurrentPermissionStatus(locationPermissionsGranted, shouldShowPermissionRationale)
+                })
+
+            val lifecycleOwner = LocalLifecycleOwner.current
+
+            DisposableEffect(key1 = lifecycleOwner, effect = {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_START &&
+                        !locationPermissionsGranted &&
+                        !shouldShowPermissionRationale) {
+                        locationPermissionLauncher.launch(locationPermissions)
+                    }
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose {
+                    lifecycleOwner.lifecycle.removeObserver(observer)
+                }
+            })
+
+
+
+            if (shouldShowPermissionRationale) {
+                LaunchedEffect(Unit) {
+                    scope.launch {
+                        val userAction = snackbarHostState.showSnackbar(
+                            message ="Please provide location permission to proceed further.",
+                            duration = SnackbarDuration.Short,
+                        )
+                        when (userAction) {
+                            SnackbarResult.ActionPerformed -> {
+                                shouldShowPermissionRationale = false
+                                locationPermissionLauncher.launch(locationPermissions)
+                            }
+                            SnackbarResult.Dismissed -> {
+                                shouldShowPermissionRationale = false
+                            }
+                        }
+                    }
+                }
+            }
+            if (shouldDirectUserToApplicationSettings) {
+                openApplicationSettings()
+            }
+
+
             GoogleAuthenticatorTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
+                    SnackbarHost(hostState = snackbarHostState)
                     //Compose navigation cache to handle recomposition properly.
                     val navController = rememberNavController()
                     NavHost(navController = navController, startDestination = "sign_in") {
@@ -93,13 +195,17 @@ class MainActivity : ComponentActivity() {
                             SignInScreen(
                                 state = state,
                                 onSignInClick = {
-                                    lifecycleScope.launch {
-                                        val signInIntentSender = googleAuthUiClient.signIn()
-                                        launcher.launch(
-                                            IntentSenderRequest.Builder(
-                                                signInIntentSender ?: return@launch
-                                            ).build()
-                                        )
+                                    if(locationPermissionsGranted) {
+                                        lifecycleScope.launch {
+                                            val signInIntentSender = googleAuthUiClient.signIn()
+                                            launcher.launch(
+                                                IntentSenderRequest.Builder(
+                                                    signInIntentSender ?: return@launch
+                                                ).build()
+                                            )
+                                        }
+                                    }else{
+                                        locationPermissionLauncher.launch(locationPermissions)
                                     }
                                 }
                             )
@@ -126,5 +232,26 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+    private fun areLocationPermissionsAlreadyGranted(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun openApplicationSettings() {
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)).also {
+            startActivity(it)
+        }
+    }
+
+    private fun decideCurrentPermissionStatus(locationPermissionsGranted: Boolean,
+                                              shouldShowPermissionRationale: Boolean): String {
+        return if (locationPermissionsGranted) "Granted"
+        else if (shouldShowPermissionRationale) "Rejected"
+        else "Denied"
+    }
+
+
 }
 
