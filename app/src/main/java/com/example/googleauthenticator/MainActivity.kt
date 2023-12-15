@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 private const val TAG = "MainActivity"
 class MainActivity : ComponentActivity() {
 
-    // lazy initialization for googleAuthUiClient. Initialized only one when the googleAuthUiClient is used for first time
+    // lazy initialization for googleAuthUiClient. Initialized only once when the googleAuthUiClient is used for first time
     private val googleAuthUiClient by lazy {
         GoogleAuthUiClient(
             context = applicationContext,
