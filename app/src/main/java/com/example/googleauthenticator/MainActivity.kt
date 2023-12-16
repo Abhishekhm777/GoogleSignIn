@@ -5,9 +5,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import com.example.googleauthenticator.views.sign_in.SignInScreen
 import android.os.Bundle
-import android.util.Log
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -17,7 +15,6 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Snackbar
 import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.SnackbarHost
 import androidx.compose.material.SnackbarHostState
@@ -32,24 +29,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.googleauthenticator.ui.theme.GoogleAuthenticatorTheme
 import com.example.googleauthenticator.views.sign_in.GoogleAuthUiClient
+import com.example.googleauthenticator.views.sign_in.SignInScreen
 import com.example.googleauthenticator.views.sign_in.SignInViewModel
 import com.google.android.gms.auth.api.identity.Identity
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 
 private const val TAG = "MainActivity"
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     // lazy initialization for googleAuthUiClient. Initialized only once when the googleAuthUiClient is used for first time
@@ -153,7 +151,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(navController = navController, startDestination = "sign_in") {
                         composable("sign_in") {
-                            val viewModel = viewModel<SignInViewModel>()
+                            val viewModel: SignInViewModel = hiltViewModel()
                             val state by viewModel.state.collectAsStateWithLifecycle()
                             LaunchedEffect(key1 = Unit) {
                                 if(googleAuthUiClient.getSignedInUser() != null) {
@@ -165,7 +163,6 @@ class MainActivity : ComponentActivity() {
                             val launcher = rememberLauncherForActivityResult(
                                 contract = ActivityResultContracts.StartIntentSenderForResult(),
                                 onResult = { result ->
-                                    Log.d(TAG, "onCreate: Result ${result.resultCode}")
                                     if(result.resultCode == RESULT_OK) {
                                         lifecycleScope.launch {
                                             val signInResult = googleAuthUiClient.signInWithIntent(
