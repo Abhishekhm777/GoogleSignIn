@@ -9,13 +9,23 @@ class UserRepository @Inject constructor(
     private val locationManager: LocationManager
 ) {
     suspend fun updateUser(params: Map<String, String>) {
-         userService.updateUser(params)
+        try {
+            userService.updateUser(params)
+        }catch (e:Exception){
+            e.printStackTrace()
+        }
+
     }
 
 
 
     suspend fun getLocation(): Pair<String, String> {
-        return locationManager.getFormatterLocationString()
+        return try {
+            locationManager.getFormatterLocationString()
+        } catch (e:Exception){
+            e.printStackTrace()
+            Pair("", "")
+        }
     }
 
 }

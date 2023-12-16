@@ -2,7 +2,6 @@ package com.example.googleauthenticator.util
 
 import android.annotation.SuppressLint
 import android.location.Location
-import android.util.Log
 import com.google.android.gms.location.FusedLocationProviderClient
 import kotlinx.coroutines.tasks.asDeferred
 

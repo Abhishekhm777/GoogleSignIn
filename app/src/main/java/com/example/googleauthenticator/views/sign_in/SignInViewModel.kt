@@ -30,10 +30,10 @@ class SignInViewModel @Inject constructor(
     }
 
 
-    private fun updateUserInfo(result: SignInResult){
+    private fun updateUserInfo(result: SignInResult?){
         val params:MutableMap<String,String> = mutableMapOf()
         val currentTimeMillis = System.currentTimeMillis()
-        val sdf = SimpleDateFormat("yyyy-MM-dd - HH:mm:ss") //Date and time can be formatted to any format, keeping it default for now
+        val sdf = SimpleDateFormat("yyyy-MM-dd - HH:mm:ss") //Date and time can be formatted to any format using getDateInstance or getTimeInstance, keeping it default for now
          val time =  sdf.format(Date(currentTimeMillis))
         result?.data?.run {
             params["action"] = "create"
@@ -41,7 +41,7 @@ class SignInViewModel @Inject constructor(
             params["time"] =  time
         }
         viewModelScope.launch {
-            repository?.getLocation()?.let {
+            repository.getLocation().let {
                 params["location"] = "${it.first} - ${it.second}"
             }
             repository.updateUser(params)

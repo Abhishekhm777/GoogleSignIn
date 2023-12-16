@@ -1,6 +1,6 @@
 package com.example.googleauthenticator
 
-import ProfileScreen
+import com.example.googleauthenticator.views.sign_in.profile.ProfileScreen
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
                 Manifest.permission.ACCESS_COARSE_LOCATION
             )
             val scope = rememberCoroutineScope()
-            val snackbarHostState = remember { SnackbarHostState() }
+            val snackBarHostState = remember { SnackbarHostState() }
 
             val locationPermissionLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -119,7 +119,7 @@ class MainActivity : ComponentActivity() {
             if (shouldShowPermissionRationale) {
                 LaunchedEffect(Unit) {
                     scope.launch {
-                        val userAction = snackbarHostState.showSnackbar(
+                        val userAction = snackBarHostState.showSnackbar(
                             message ="Please provide location permission to proceed further.",
                             duration = SnackbarDuration.Short,
                         )
@@ -140,13 +140,14 @@ class MainActivity : ComponentActivity() {
             }
 
 
+
             GoogleAuthenticatorTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    SnackbarHost(hostState = snackbarHostState)
+                    SnackbarHost(hostState = snackBarHostState)
                     //Compose navigation cache to handle recomposition properly.
                     val navController = rememberNavController()
                     NavHost(navController = navController, startDestination = "sign_in") {
@@ -207,6 +208,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        //Profile screen after sign in state
                         composable("profile") {
                             ProfileScreen(
                                 userData = googleAuthUiClient.getSignedInUser(),
@@ -229,6 +231,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+
 
     private fun areLocationPermissionsAlreadyGranted(): Boolean {
         return ContextCompat.checkSelfPermission(

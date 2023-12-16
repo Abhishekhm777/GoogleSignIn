@@ -23,7 +23,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 object ActivityModule {
 
     @Provides
-    fun provideViewmodel(repository: UserRepository) =SignInViewModel(repository)
+    fun provideViewModel(repository: UserRepository) =SignInViewModel(repository)
 
     @Provides
     fun providesBaseUrl(): String {
